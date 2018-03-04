@@ -12,7 +12,8 @@ to visualize the model, activations etc. Here we provide more functions for data
    read_images
    save_image
    save_images
-   W
+   draw_boxes_and_labels_to_image
+   draw_weights
    CNN2d
    frame
    images2d
@@ -38,17 +39,22 @@ Save multiple images
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: save_images
 
+Save image for object detection
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: draw_boxes_and_labels_to_image
+
+
 
 Visualize model parameters
 ------------------------------
 
-Visualize weight matrix
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: W
-
 Visualize CNN 2d filter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: CNN2d
+
+Visualize weights
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: draw_weights
 
 Visualize images
 -----------------
@@ -63,5 +69,4 @@ Images by matplotlib
 
 Visualize embeddings
 --------------------
-
 .. autofunction:: tsne_embedding

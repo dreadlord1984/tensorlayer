@@ -1,43 +1,39 @@
 API - Layers
-=========================
+============
 
-To make TensorLayer simple, we minimize the number of layer classes as much as
-we can. So we encourage you to use TensorFlow's function.
-For example, we provide layer for local response normalization, but user can still apply ``tf.nn.lrn`` on ``network.outputs``.
-More functions can be found in `TensorFlow API <https://www.tensorflow.org/versions/master/api_docs/index.html>`_.
+.. automodule:: tensorlayer.layers
 
 
-Understand Basic layer
--------------------------
+Understanding the Basic Layer
+-----------------------------
 
 All TensorLayer layers have a number of properties in common:
 
  - ``layer.outputs`` : a Tensor, the outputs of current layer.
  - ``layer.all_params`` : a list of Tensor, all network variables in order.
  - ``layer.all_layers`` : a list of Tensor, all network outputs in order.
- - ``layer.all_drop`` : a dictionary of {placeholder : float}, all keeping probabilities of noise layer.
+ - ``layer.all_drop`` : a dictionary of {placeholder : float}, all keeping probabilities of noise layers.
 
 All TensorLayer layers have a number of methods in common:
 
- - ``layer.print_params()`` : print the network variables information in order (after ``tl.layers.initialize_global_variables(sess)``). alternatively, print all variables by ``tl.layers.print_all_variables()``.
- - ``layer.print_layers()`` : print the network layers information in order.
+ - ``layer.print_params()`` : print network variable information in order (after ``tl.layers.initialize_global_variables(sess)``). alternatively, print all variables by ``tl.layers.print_all_variables()``.
+ - ``layer.print_layers()`` : print network layer information in order.
  - ``layer.count_params()`` : print the number of parameters in the network.
 
-The initialization of a network is done by input layer, then we can stacked layers
-as follow, a network is a ``Layer`` class.
-The most important properties of a network are ``network.all_params``, ``network.all_layers`` and ``network.all_drop``.
-The ``all_params`` is a list which store all pointers of all network parameters in order,
+A network starts with the input layer and is followed by layers stacked in order.
+A network is essentially a ``Layer`` class.
+The key properties of a network are ``network.all_params``, ``network.all_layers`` and ``network.all_drop``.
+The ``all_params`` is a list which store pointers to all network parameters in order. For example,
 the following script define a 3 layer network, then:
 
 ``all_params`` = [W1, b1, W2, b2, W_out, b_out]
 
-To get specified variables, you can use ``network.all_params[2:3]`` or ``get_variables_with_name()``.
-As the ``all_layers`` is a list which store all pointers of the outputs of all layers,
-in the following network:
+To get specified variable information, you can use ``network.all_params[2:3]`` or ``get_variables_with_name()``.
+``all_layers`` is a list which stores the pointers to the outputs of all layers, see the example as follow:
 
 ``all_layers`` = [drop(?,784), relu(?,800), drop(?,800), relu(?,800), drop(?,800)], identity(?,10)]
 
-where ``?`` reflects any batch size. You can print the layer information and parameters information by
+where ``?`` reflects a given batch size. You can print the layer and parameters information by
 using ``network.print_layers()`` and ``network.print_params()``.
 To count the number of parameters in a network, run ``network.count_params()``.
 
@@ -76,9 +72,9 @@ To count the number of parameters in a network, run ``network.count_params()``.
   network.print_layers()
 
 In addition, ``network.all_drop`` is a dictionary which stores the keeping probabilities of all
-noise layer. In the above network, they are the keeping probabilities of dropout layers.
+noise layers. In the above network, they represent the keeping probabilities of dropout layers.
 
-So for training, enable all dropout layers as follow.
+In case for training, you can enable all dropout layers as follow:
 
 .. code-block:: python
 
@@ -87,7 +83,7 @@ So for training, enable all dropout layers as follow.
   loss, _ = sess.run([cost, train_op], feed_dict=feed_dict)
   feed_dict.update( network.all_drop )
 
-For evaluating and testing, disable all dropout layers as follow.
+In case for evaluating and testing, you can disable all dropout layers as follow.
 
 .. code-block:: python
 
@@ -97,17 +93,53 @@ For evaluating and testing, disable all dropout layers as follow.
   print("   val acc: %f" % np.mean(y_val ==
                           sess.run(y_op, feed_dict=feed_dict)))
 
-For more details, please read the MNIST examples on Github.
+For more details, please read the MNIST examples in the example folder.
 
 
-Understand Dense layer
---------------------------
+Customizing Layers
+------------------
 
-Before creating your own TensorLayer layer, let's have a look at Dense layer.
-It creates a weights matrix and biases vector if not exists, then implement
+A Simple Layer
+^^^^^^^^^^^^^^
+
+To implement a custom layer in TensorLayer, you will have to write a Python class
+that subclasses Layer and implement the ``outputs`` expression.
+
+The following is an example implementation of a layer that multiplies its input by 2:
+
+.. code-block:: python
+
+  class DoubleLayer(Layer):
+      def __init__(
+          self,
+          layer = None,
+          name ='double_layer',
+      ):
+          # check layer name (fixed)
+          Layer.__init__(self, name=name)
+
+          # the input of this layer is the output of previous layer (fixed)
+          self.inputs = layer.outputs
+
+          # operation (customized)
+          self.outputs = self.inputs * 2
+
+          # get stuff from previous layer (fixed)
+          self.all_layers = list(layer.all_layers)
+          self.all_params = list(layer.all_params)
+          self.all_drop = dict(layer.all_drop)
+
+          # update layer (customized)
+          self.all_layers.extend( [self.outputs] )
+
+
+Your Dense Layer
+^^^^^^^^^^^^^^^^
+
+Before creating your own TensorLayer layer, let's have a look at the Dense layer.
+It creates a weight matrix and a bias vector if not exists, and then implements
 the output expression.
-At the end, as a layer with parameter, we also need to append the parameters into ``all_params``.
-
+At the end, for a layer with parameters, we also append the parameters into ``all_params``.
 
 .. code-block:: python
 
@@ -145,42 +177,6 @@ At the end, as a layer with parameter, we also need to append the parameters int
         # update layer (customized)
         self.all_layers.extend( [self.outputs] )
         self.all_params.extend( [W, b] )
-
-Your layer
------------------
-
-A simple layer
-^^^^^^^^^^^^^^^
-
-To implement a custom layer in TensorLayer, you will have to write a Python class
-that subclasses Layer and implement the ``outputs`` expression.
-
-The following is an example implementation of a layer that multiplies its input by 2:
-
-.. code-block:: python
-
-  class DoubleLayer(Layer):
-      def __init__(
-          self,
-          layer = None,
-          name ='double_layer',
-      ):
-          # check layer name (fixed)
-          Layer.__init__(self, name=name)
-
-          # the input of this layer is the output of previous layer (fixed)
-          self.inputs = layer.outputs
-
-          # operation (customized)
-          self.outputs = self.inputs * 2
-
-          # get stuff from previous layer (fixed)
-          self.all_layers = list(layer.all_layers)
-          self.all_params = list(layer.all_params)
-          self.all_drop = dict(layer.all_drop)
-
-          # update layer (customized)
-          self.all_layers.extend( [self.outputs] )
 
 
 Modifying Pre-train Behaviour
@@ -234,9 +230,7 @@ In addition, if you want to update the parameters of previous 2 layers at the sa
 
 
 Layer list
-------------
-
-.. automodule:: tensorlayer.layers
+----------
 
 .. autosummary::
 
@@ -271,11 +265,14 @@ Layer list
    DownSampling2dLayer
    AtrousConv1dLayer
    AtrousConv2dLayer
-   SeparableConv2dLayer
 
    Conv1d
    Conv2d
    DeConv2d
+   DeConv3d
+   DepthwiseConv2d
+   DeformableConv2d
+   GroupConv2d
 
    MaxPool1d
    MeanPool1d
@@ -302,15 +299,20 @@ Layer list
 
    RNNLayer
    BiRNNLayer
+
+   ConvRNNCell
+   BasicConvLSTMCell
+   ConvLSTMLayer
+
    advanced_indexing_op
    retrieve_seq_length_op
    retrieve_seq_length_op2
+   retrieve_seq_length_op3
+   target_mask_op
    DynamicRNNLayer
    BiDynamicRNNLayer
 
    Seq2Seq
-   PeekySeq2Seq
-   AttentionSeq2Seq
 
    FlattenLayer
    ReshapeLayer
@@ -327,15 +329,12 @@ Layer list
    StackLayer
    UnStackLayer
 
-   EstimatorLayer
    SlimNetsLayer
-   KerasLayer
 
    PReluLayer
 
    MultiplexerLayer
 
-   EmbeddingAttentionSeq2seqWrapper
 
    flatten_reshape
    clear_layers_name
@@ -348,7 +347,7 @@ Name Scope and Sharing Parameters
 ---------------------------------
 
 These functions help you to reuse parameters for different inference (graph), and get a
-list of parameters by given name. About TensorFlow parameters sharing click `here <https://www.tensorflow.org/versions/master/how_tos/variable_scope/index.html>`_.
+list of parameters by given name. About TensorFlow parameters sharing click `here <https://www.tensorflow.org/versions/master/how_tos/variable_scope/index.html>`__.
 
 Get variables with name
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -429,45 +428,42 @@ Dropconnect + Dense layer
 Convolutional layer (Pro)
 --------------------------
 
-1D Convolutional layer
+1D Convolution
 ^^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: Conv1dLayer
 
-2D Convolutional layer
+2D Convolution
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: Conv2dLayer
 
-2D Deconvolutional layer
+2D Deconvolution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: DeConv2dLayer
 
-3D Convolutional layer
+3D Convolution
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: Conv3dLayer
 
-3D Deconvolutional layer
+3D Deconvolution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: DeConv3dLayer
 
-2D UpSampling layer
+2D UpSampling
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: UpSampling2dLayer
 
-2D DownSampling layer
+2D DownSampling
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: DownSampling2dLayer
 
-1D Atrous convolutional layer
+1D Atrous convolution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: AtrousConv1dLayer
 
-2D Atrous convolutional layer
+2D Atrous convolution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: AtrousConv2dLayer
 
-2D Separable convolutional layer
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autoclass:: SeparableConv2dLayer
 
 Convolutional layer (Simplified)
 -----------------------------------
@@ -476,50 +472,42 @@ For users don't familiar with TensorFlow, the following simplified functions may
 We will provide more simplified functions later, but if you are good at TensorFlow, the professional
 APIs may better for you.
 
-1D Convolutional layer
+1D Convolution
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: Conv1d
 
-2D Convolutional layer
+2D Convolution
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: Conv2d
 
-2D Deconvolutional layer
+2D Deconvolution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: DeConv2d
 
-1D Max pooling layer
+3D Deconvolution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: MaxPool1d
+.. autoclass:: DeConv3d
 
-1D Mean pooling layer
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: MeanPool1d
+2D Depthwise/Separable Conv
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: DepthwiseConv2d
 
-2D Max pooling layer
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: MaxPool2d
+2D Deformable Conv
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: DeformableConv2d
 
-2D Mean pooling layer
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: MeanPool2d
-
-3D Max pooling layer
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: MaxPool3d
-
-3D Mean pooling layer
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: MeanPool3d
+2D Grouped Conv
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: GroupConv2d
 
 Super-Resolution layer
 ------------------------
 
-1D Supixel Convolutional
+1D Subpixel Convolution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: SubpixelConv1d
 
-2D Supixel Convolutional
+2D Subpixel Convolution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: SubpixelConv2d
 
@@ -527,7 +515,7 @@ Super-Resolution layer
 Spatial Transformer
 -----------------------
 
-2D Affine Transformation layer
+2D Affine Transformation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: SpatialTransformer2dAffineLayer
 
@@ -540,20 +528,45 @@ Batch 2D Affine Transformation function
 .. autofunction:: batch_transformer
 
 
-Pooling layer
-----------------
+Pooling and Padding layers
+---------------------------
 
+Pooling (Pro)
+^^^^^^^^^^^^^^
 Pooling layer for any dimensions and any pooling functions.
 
 .. autoclass:: PoolLayer
 
-
-Padding layer
-----------------
-
+Padding (Pro)
+^^^^^^^^^^^^^^
 Padding layer for any modes.
 
 .. autoclass:: PadLayer
+
+1D Max pooling
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: MaxPool1d
+
+1D Mean pooling
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: MeanPool1d
+
+2D Max pooling
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: MaxPool2d
+
+2D Mean pooling
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: MeanPool2d
+
+3D Max pooling
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: MaxPool3d
+
+3D Mean pooling
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: MeanPool3d
+
 
 
 Normalization layer
@@ -606,6 +619,24 @@ Bidirectional layer
 .. autoclass:: BiRNNLayer
 
 
+
+Recurrent Convolutional layer
+-------------------------------
+
+Conv RNN Cell
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: ConvRNNCell
+
+Basic Conv LSTM Cell
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: BasicConvLSTMCell
+
+Conv LSTM layer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: ConvLSTMLayer
+
+
+
 Advanced Ops for Dynamic RNN
 -------------------------------
 These operations usually be used inside Dynamic RNN layer, they can
@@ -622,6 +653,14 @@ Compute Sequence length 1
 Compute Sequence length 2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: retrieve_seq_length_op2
+
+Compute Sequence length 3
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: retrieve_seq_length_op3
+
+Get Mask
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: target_mask_op
 
 
 Dynamic RNN layer
@@ -644,13 +683,14 @@ Simple Seq2Seq
 ^^^^^^^^^^^^^^^^^
 .. autoclass:: Seq2Seq
 
-PeekySeq2Seq
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autoclass:: PeekySeq2Seq
+..
+  PeekySeq2Seq
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  .. autoclass:: PeekySeq2Seq
 
-AttentionSeq2Seq
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autoclass:: AttentionSeq2Seq
+  AttentionSeq2Seq
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  .. autoclass:: AttentionSeq2Seq
 
 
 
@@ -712,27 +752,27 @@ Unstack layer
 ^^^^^^^^^^^^^^^
 .. autofunction:: UnStackLayer
 
-
-Estimator layer
-------------------
-.. autoclass:: EstimatorLayer
-
+..
+  Estimator layer
+  ------------------
+  .. autoclass:: EstimatorLayer
 
 
 Connect TF-Slim
 ------------------
 
-Yes ! TF-Slim models can be connected into TensorLayer, all Google's Pre-trained model can be used easily ,
-see `Slim-model <https://github.com/tensorflow/models/tree/master/slim#Install>`_ .
+TF-Slim models can be connected into TensorLayer. All Google's Pre-trained model can be used easily ,
+see `Slim-model <https://github.com/tensorflow/models/tree/master/research/slim>`__.
 
 .. autoclass:: SlimNetsLayer
 
-Connect Keras
-------------------
+..
+  Connect Keras
+  ------------------
 
-Yes ! Keras models can be connected into TensorLayer! see `tutorial_keras.py <https://github.com/zsdonghao/tensorlayer/blob/master/example/tutorial_keras.py>`_ .
+  Yes ! Keras models can be connected into TensorLayer! see `tutorial_keras.py <https://github.com/zsdonghao/tensorlayer/blob/master/example/tutorial_keras.py>`_ .
 
-.. autoclass:: KerasLayer
+  .. autoclass:: KerasLayer
 
 
 Parametric activation layer
@@ -745,14 +785,15 @@ Flow control layer
 
 .. autoclass:: MultiplexerLayer
 
-Wrapper
----------
+..
+  Wrapper
+  ---------
 
-Embedding + Attention + Seq2seq
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Embedding + Attention + Seq2seq
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: EmbeddingAttentionSeq2seqWrapper
-  :members:
+  .. autoclass:: EmbeddingAttentionSeq2seqWrapper
+    :members:
 
 
 

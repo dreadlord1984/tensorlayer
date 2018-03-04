@@ -1,0 +1,21 @@
+# https://docs.travis-ci.com/user/languages/python/
+language: python
+python:
+  - "2.7"
+  - "3.5"
+  # - "3.6"  # TODO: make it work: https://github.com/tensorlayer/tensorlayer/issues/291
+install:
+  - pip install tensorflow
+  - pip install -r tests/requirements.txt
+  - pip install .
+script:
+  # units test
+  # https://docs.pytest.org/en/latest/
+  # TODO: make it work
+  # - pytest
+
+  # smoke tests
+  # - make test  # TODO: make it use python3 by default
+  - python tests/test_yapf_format.py
+  - python tests/test_pydocstyle.py
+  - python tests/test_mnist_simple.py
